@@ -1,7 +1,7 @@
 # Embedded-Systems-Programming-Pacman
 A simple Pacman application for the QEMU emulated versatilepb board.
 
-#Object of the game: 
+# Object of the game: 
 The player controlled character is pacman. He must move around collecting dots in a maze while avoiding ghosts. In this iteration of the game each dot is worth 100 points. If all dots are collected you win and the game ends. If you touch one of the 2 roaming ghosts the game ends early. Afterwards the score you recieved is printed out. 
 
 The game is made up of a series of bmp (bitmap) image files. There are 2 kinds, firstly there is the map which is made of a number of sections. These are walls, dots, and blank spaces. Walls are areas where the pacman bitmap sprite cannot move to. There are also spaces with dots which pacman must collect, and blank spaces that he is free to move to also but do not have points. If a dot is collected 100 points are awarded and the space becomes a blank space.
