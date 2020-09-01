@@ -1,0 +1,118 @@
+// kbd.c file
+
+#include "keymap"
+
+typedef volatile struct kbd{ // base = 0x1000 6000
+  u32 control; // 7-6- 5(0=AT) 4=RxIntEn 3=TxIntEn    2   1   0
+  u32 status;  // 7- 6=TxE   5=TxBusy  4=RXFull  3=RxBusy   2   1   0
+  u32 data;
+  u32 clock;
+  u32 intstatus;
+  // other fields;
+}KBD;
+
+volatile KBD *kbd;
+volatile int *kdata = (int *)0x10006008;
+
+volatile char kbuf[128];
+volatile int khead, ktail, kchar, kroom;
+volatile int kline;
+
+void kbd_handler() {
+    unsigned char scode, c;
+    int oldcolor = color;
+    color=RED;
+
+    scode = KBD_DR;
+
+    if (scode==0x1D || scode==0x9D) goto out;
+    if (scode==0x38 || scode==0xB8) goto out;
+    if (scode & 0x80)               goto out;
+
+    c = unsh[scode]; 
+    if (c != '\r')
+       kprintf("kbd interrupt: c=%x %c\n", c, c); 
+
+    kbuf[khead++] = c;
+    khead %= 128;
+    kchar++; kroom--;
+    
+    if (c == '\r'){
+      kbuf[khead-1] = 0;
+      kline = 1;
+      kprintf("line=%s\n", &kbuf[ktail]);
+      
+    }          
+ out:
+    color = oldcolor;
+    //    kbd->status = 0xFF;
+    // VIC_VADDR = 0xFF;
+ }
+
+int kputc(char);
+
+int kbd_init()
+{
+  kprintf("kbd_init(): ");
+  kbd = (KBD *)0x10006000;
+  kbd->control = 0x14; // 0001 0100
+  kbd->clock = 8;
+
+  kchar = 0; kroom = 128; 
+  khead = ktail = 0;
+  kline = 0;
+}
+
+int kgetc()
+{
+    unsigned char scode, key;
+    int ocolor = color;
+    color = RED;
+    
+    while(kbd->status & 0x80); // while RXbusy 
+    while(!(kbd->status & 0x10)); // while RX not full
+  
+    while(1){
+       scode = kbd->data & 0xFF;  
+       if ((scode & 0x80))
+	 continue;
+       key = unsh[scode];
+
+       kputc(key);
+
+       if (key=='\r'){
+	  kputc('\n');
+       }
+       color = ocolor;
+       return key;
+    }
+}
+
+/*******************
+int kgets(char s[ ])
+{
+  char c;
+  
+  while((c=kgetc()) != '\r'){
+    *s = c;
+    kputc(c);
+    s++;
+  }
+  *s = 0;
+  return strlen(s);
+}
+*****************/
+
+int kgets(char s[ ])
+{
+  int i, j;
+
+  while(kline==0);
+  while(kchar){
+    *s = kbuf[ktail++];
+    ktail %= 128;
+    kchar--; kroom++;
+    s++;
+  }
+  kline = 0;
+}
